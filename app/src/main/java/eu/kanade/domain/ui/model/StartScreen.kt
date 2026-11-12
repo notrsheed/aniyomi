@@ -11,9 +11,8 @@ import tachiyomi.i18n.MR
 import tachiyomi.i18n.aniyomi.AYMR
 
 enum class StartScreen(val titleRes: StringResource, val tab: Tab) {
-    ANIME(AYMR.strings.label_anime, AnimeLibraryTab),
-    MANGA(AYMR.strings.manga, MangaLibraryTab),
+    ANIME(MR.strings.label_library, AnimeLibraryTab),
     UPDATES(MR.strings.label_recent_updates, UpdatesTab),
-    HISTORY(MR.strings.label_recent_manga, HistoriesTab),
+    HISTORY(MR.strings.history, HistoriesTab),
     BROWSE(MR.strings.browse, BrowseTab),
 }

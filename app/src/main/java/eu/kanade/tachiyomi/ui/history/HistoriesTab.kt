@@ -19,8 +19,6 @@ import eu.kanade.tachiyomi.R
 import eu.kanade.tachiyomi.ui.history.anime.AnimeHistoryScreenModel
 import eu.kanade.tachiyomi.ui.history.anime.animeHistoryTab
 import eu.kanade.tachiyomi.ui.history.anime.resumeLastEpisodeSeenEvent
-import eu.kanade.tachiyomi.ui.history.manga.MangaHistoryScreenModel
-import eu.kanade.tachiyomi.ui.history.manga.mangaHistoryTab
 import eu.kanade.tachiyomi.ui.main.MainActivity
 import kotlinx.collections.immutable.persistentListOf
 import tachiyomi.i18n.MR
@@ -53,21 +51,15 @@ data object HistoriesTab : Tab {
     override fun Content() {
         val context = LocalContext.current
         val fromMore = currentNavigationStyle() == NavStyle.MOVE_HISTORY_TO_MORE
-        // Hoisted for history tab's search bar
-        val mangaHistoryScreenModel = rememberScreenModel { MangaHistoryScreenModel() }
-        val mangaSearchQuery by mangaHistoryScreenModel.query.collectAsState()
 
         val animeHistoryScreenModel = rememberScreenModel { AnimeHistoryScreenModel() }
         val animeSearchQuery by animeHistoryScreenModel.query.collectAsState()
 
         TabbedScreen(
-            titleRes = MR.strings.label_recent_manga,
+            titleRes = MR.strings.history,
             tabs = persistentListOf(
                 animeHistoryTab(context, fromMore),
-                mangaHistoryTab(context, fromMore),
             ),
-            mangaSearchQuery = mangaSearchQuery,
-            onChangeMangaSearchQuery = mangaHistoryScreenModel::search,
             animeSearchQuery = animeSearchQuery,
             onChangeAnimeSearchQuery = animeHistoryScreenModel::search,
         )

@@ -94,17 +94,11 @@ data object DownloadsTab : Tab {
         val navigator = LocalNavigator.currentOrThrow
         val scope = rememberCoroutineScope()
         val animeScreenModel = rememberScreenModel { AnimeDownloadQueueScreenModel() }
-        val mangaScreenModel = rememberScreenModel { MangaDownloadQueueScreenModel() }
         val animeDownloadList by animeScreenModel.state.collectAsState()
-        val mangaDownloadList by mangaScreenModel.state.collectAsState()
         val animeDownloadCount by remember {
             derivedStateOf { animeDownloadList.sumOf { it.subItems.size } }
         }
-        val mangaDownloadCount by remember {
-            derivedStateOf { mangaDownloadList.sumOf { it.subItems.size } }
-        }
 
-        val state = rememberPagerState { 2 }
         val snackbarHostState = remember { SnackbarHostState() }
 
         val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
@@ -156,72 +150,40 @@ data object DownloadsTab : Tab {
                     },
                     navigateUp = navigator::pop,
                     actions = {
-                        when (state.currentPage) {
-                            0 -> AnimeActions(animeScreenModel, animeDownloadList)
-                            1 -> MangaActions(mangaScreenModel, mangaDownloadList)
-                        }
+                        AnimeActions(animeScreenModel, animeDownloadList)
                     },
                     scrollBehavior = scrollBehavior,
                 )
             },
             floatingActionButton = {
                 AnimatedVisibility(
-                    visible = when (state.currentPage) {
-                        0 -> animeDownloadList.isNotEmpty()
-                        1 -> mangaDownloadList.isNotEmpty()
-                        else -> false
-                    },
+                    visible = animeDownloadList.isNotEmpty(),
                     enter = fadeIn(),
                     exit = fadeOut(),
                 ) {
                     val animeIsRunning by animeScreenModel.isDownloaderRunning.collectAsState()
-                    val mangaIsRunning by mangaScreenModel.isDownloaderRunning.collectAsState()
                     ExtendedFloatingActionButton(
                         text = {
-                            val id = when (state.currentPage) {
-                                0 -> if (animeIsRunning) {
-                                    AYMR.strings.action_stop
-                                } else {
-                                    AYMR.strings.action_continue
-                                }
-                                1 -> if (mangaIsRunning) {
-                                    MR.strings.action_pause
-                                } else {
-                                    MR.strings.action_resume
-                                }
-                                else -> MR.strings.action_pause
+                            val id = if (animeIsRunning) {
+                                AYMR.strings.action_stop
+                            } else {
+                                AYMR.strings.action_continue
                             }
                             Text(text = stringResource(id))
                         },
                         icon = {
-                            val icon = when (state.currentPage) {
-                                0 -> if (animeIsRunning) {
-                                    Icons.Outlined.Pause
-                                } else {
-                                    Icons.Filled.PlayArrow
-                                }
-                                1 -> if (mangaIsRunning) {
-                                    Icons.Outlined.Pause
-                                } else {
-                                    Icons.Filled.PlayArrow
-                                }
-                                else -> Icons.Filled.PlayArrow
+                            val icon = if (animeIsRunning) {
+                                Icons.Outlined.Pause
+                            } else {
+                                Icons.Filled.PlayArrow
                             }
                             Icon(imageVector = icon, contentDescription = null)
                         },
                         onClick = {
-                            when (state.currentPage) {
-                                0 -> if (animeIsRunning) {
-                                    animeScreenModel.pauseDownloads()
-                                } else {
-                                    animeScreenModel.startDownloads()
-                                }
-
-                                1 -> if (mangaIsRunning) {
-                                    mangaScreenModel.pauseDownloads()
-                                } else {
-                                    mangaScreenModel.startDownloads()
-                                }
+                            if (animeIsRunning) {
+                                animeScreenModel.pauseDownloads()
+                            } else {
+                                animeScreenModel.startDownloads()
                             }
                         },
                         expanded = fabExpanded,
@@ -236,53 +198,14 @@ data object DownloadsTab : Tab {
                     end = contentPadding.calculateEndPadding(LocalLayoutDirection.current),
                 ),
             ) {
-                PrimaryTabRow(
-                    selectedTabIndex = state.currentPage,
-                    modifier = Modifier.zIndex(1f),
-                ) {
-                    listOf(
-                        Tab(
-                            selected = state.currentPage == 0,
-                            onClick = { scope.launch { state.animateScrollToPage(0) } },
-                            text = {
-                                TabText(
-                                    text = stringResource(AYMR.strings.label_anime),
-                                    badgeCount = animeDownloadCount,
-                                )
-                            },
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        Tab(
-                            selected = state.currentPage == 1,
-                            onClick = { scope.launch { state.animateScrollToPage(1) } },
-                            text = {
-                                TabText(
-                                    text = stringResource(AYMR.strings.manga),
-                                    badgeCount = mangaDownloadCount,
-                                )
-                            },
-                            unselectedContentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    )
-                }
-
-                HorizontalPager(
-                    modifier = Modifier.fillMaxSize(),
-                    state = state,
-                    verticalAlignment = Alignment.Top,
-                    pageNestedScrollConnection = nestedScrollConnection,
-                ) { page ->
-                    when (page) {
-                        0 -> animeDownloadTab(
-                            nestedScrollConnection,
-                        ).content(
-                            PaddingValues(bottom = contentPadding.calculateBottomPadding()),
-                            snackbarHostState,
-                        )
-                        1 -> mangaDownloadTab(
-                            nestedScrollConnection,
-                        ).content(
-                            PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                animeDownloadTab(
+                    nestedScrollConnection,
+                ).content(
+                    PaddingValues(bottom = contentPadding.calculateBottomPadding()),
+                    snackbarHostState,
+                )
+            }
+        }
                             snackbarHostState,
                         )
                     }

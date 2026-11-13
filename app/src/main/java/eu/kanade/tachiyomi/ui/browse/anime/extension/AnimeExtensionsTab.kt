@@ -53,7 +53,7 @@ fun animeExtensionsTab(
                 onClick = { navigator.push(AnimeExtensionStoresScreen()) },
             ),
             AppBar.OverflowAction(
-                title = "Trust all",
+                title = stringResource(MR.strings.ext_trust) + " all",
                 onClick = { extensionsScreenModel.trustAllExtensions() },
             ),
         ),

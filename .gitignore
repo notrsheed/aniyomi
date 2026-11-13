@@ -17,3 +17,7 @@ local.properties
 
 keystore.properties
 *.jks
+
+# Local signing credentials
+release.jks
+keystore.properties

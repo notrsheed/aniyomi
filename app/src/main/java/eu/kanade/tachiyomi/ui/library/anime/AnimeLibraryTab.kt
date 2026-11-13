@@ -7,6 +7,13 @@ import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import tachiyomi.domain.history.anime.interactor.GetNextEpisodes
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.SnackbarHost
@@ -174,7 +181,28 @@ data object AnimeLibraryTab : Tab {
                     isManga = false,
                 )
             },
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+                        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            floatingActionButton = {
+                if (!state.selectionMode && !state.isLoading && !state.isLibraryEmpty) {
+                    ExtendedFloatingActionButton(
+                        onClick = {
+                            scope.launchIO {
+                                val nextEpisodes = Injekt.get<GetNextEpisodes>().await(onlyUnseen = false)
+                                val episode = nextEpisodes.firstOrNull()
+                                if (episode != null) {
+                                    openEpisode(episode)
+                                } else {
+                                    snackbarHostState.showSnackbar(
+                                        context.stringResource(AYMR.strings.information_no_recent_anime),
+                                    )
+                                }
+                            }
+                        },
+                        icon = { Icon(imageVector = Icons.Filled.PlayArrow, contentDescription = null) },
+                        text = { Text(text = "Resume") },
+                    )
+                }
+            },
         ) { contentPadding ->
             when {
                 state.isLoading -> LoadingScreen(Modifier.padding(contentPadding))
@@ -306,3 +334,5 @@ data object AnimeLibraryTab : Tab {
     private val requestSettingsSheetEvent = Channel<Unit>()
     private suspend fun requestOpenSettingsSheet() = requestSettingsSheetEvent.send(Unit)
 }
+
+

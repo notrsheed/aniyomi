@@ -1,34 +1,98 @@
 package eu.kanade.tachiyomi.ui.player.loader
 
+import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import eu.kanade.tachiyomi.animesource.AnimeSource
 import eu.kanade.tachiyomi.animesource.model.Hoster
 import eu.kanade.tachiyomi.animesource.model.Video
 import eu.kanade.tachiyomi.animesource.online.AnimeHttpSource
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.HosterState
 import eu.kanade.tachiyomi.ui.player.controls.components.sheets.getChangedAt
+import eu.kanade.tachiyomi.ui.player.settings.PlayerPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.withContext
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import kotlin.coroutines.cancellation.CancellationException
 
 class HosterLoader {
     companion object {
+        private fun getTargetQuality(): String {
+            val context = Injekt.get<Application>()
+            val playerPreferences = Injekt.get<PlayerPreferences>()
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val capabilities = cm.getNetworkCapabilities(cm.activeNetwork)
+
+            val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true ||
+                capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) == true
+
+            return if (isWifi) {
+                playerPreferences.defaultQualityWifi().get()
+            } else {
+                playerPreferences.defaultQualityMobile().get()
+            }
+        }
+
+        private fun Video.matchesQuality(targetQuality: String): Boolean {
+            val targetInt = targetQuality.toIntOrNull() ?: return false
+            return resolution == targetInt ||
+                videoTitle.contains("${targetQuality}p", ignoreCase = true)
+        }
+
         /**
          * Check for the best video from the current hosterState.
          *
-         * The first video with the `preferred` attribute is selected, however
-         * if no such video is selected the first video with a non-empty url is selected.
-         * If there are no viable videos at all, an error is thrown.
+         * Checks user's preferred Wi-Fi/Mobile quality first (if not "auto"),
+         * then falls back to `preferred`, then the first video with a non-empty url.
          *
          * @return the indices of the hoster & video
          */
         fun selectBestVideo(hosterState: List<HosterState>): Pair<Int, Int> {
+            val targetQuality = getTargetQuality()
             val availableHosters = hosterState.withIndex()
                 .filter { (_, state) -> state is HosterState.Ready }
 
-            // Check for first preferred
+            // 1. If user configured a specific resolution for the active network, try matching it first
+            if (targetQuality != "auto") {
+                val isQualityMatch: (Pair<Video, Video.State>) -> Boolean = { (v, s) ->
+                    v.matchesQuality(targetQuality) && (s == Video.State.READY || s == Video.State.QUEUE)
+                }
+
+                // Prefer a hoster marked preferred that also matches the target quality
+                val prefQualityHosterIdx = availableHosters.indexOfFirst {
+                    (it.value as HosterState.Ready).let { hoster ->
+                        hoster.videoList zip hoster.videoState
+                    }.any { (v, s) -> v.preferred && isQualityMatch(v to s) }
+                }
+                if (prefQualityHosterIdx != -1) {
+                    val videoList = (availableHosters[prefQualityHosterIdx].value as HosterState.Ready).let { hoster ->
+                        hoster.videoList zip hoster.videoState
+                    }
+                    val videoIdx = videoList.indexOfFirst { (v, s) -> v.preferred && isQualityMatch(v to s) }
+                    return availableHosters[prefQualityHosterIdx].index to videoIdx
+                }
+
+                // Otherwise pick any hoster offering the target quality
+                val anyQualityHosterIdx = availableHosters.indexOfFirst {
+                    (it.value as HosterState.Ready).let { hoster ->
+                        hoster.videoList zip hoster.videoState
+                    }.any(isQualityMatch)
+                }
+                if (anyQualityHosterIdx != -1) {
+                    val videoList = (availableHosters[anyQualityHosterIdx].value as HosterState.Ready).let { hoster ->
+                        hoster.videoList zip hoster.videoState
+                    }
+                    val videoIdx = videoList.indexOfFirst(isQualityMatch)
+                    return availableHosters[anyQualityHosterIdx].index to videoIdx
+                }
+            }
+
+            // 2. Fallback: Check for first preferred
             val isPreferred: (Pair<Video, Video.State>) -> Boolean = { (v, s) ->
                 v.preferred && (s == Video.State.READY || s == Video.State.QUEUE)
             }
@@ -45,7 +109,7 @@ class HosterLoader {
                 return availableHosters[prefHosterIdx].index to prefVideoIdx
             }
 
-            // Check for first video with non-empty url
+            // 3. Fallback: Check for first video with non-empty url
             val firstValid: (Pair<Video, Video.State>) -> Boolean = { (v, s) ->
                 v.videoUrl.isNotEmpty() && (s == Video.State.READY || s == Video.State.QUEUE)
             }
@@ -77,6 +141,7 @@ class HosterLoader {
          */
         suspend fun getBestVideo(source: AnimeSource, hosterList: List<Hoster>): Video? {
             val hosterStates = MutableList<HosterState>(hosterList.size) { HosterState.Idle("") }
+            val targetQuality = getTargetQuality()
 
             return try {
                 withContext(Dispatchers.IO) {
@@ -86,7 +151,14 @@ class HosterLoader {
                             hosterStates[hosterIdx] = hosterState
 
                             if (hosterState is HosterState.Ready) {
-                                val prefIndex = hosterState.videoList.indexOfFirst { it.preferred && !it.initialized }
+                                val prefIndex = hosterState.videoList.indexOfFirst { video ->
+                                    val matchesPref = if (targetQuality == "auto") {
+                                        video.preferred
+                                    } else {
+                                        video.matchesQuality(targetQuality)
+                                    }
+                                    matchesPref && !video.initialized
+                                }
                                 if (prefIndex != -1) {
                                     val video = hosterState.videoList[prefIndex]
                                     hosterStates[hosterIdx] =

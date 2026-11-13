@@ -122,10 +122,27 @@ object PlayerSettingsPlayerScreen : SearchableSettings {
     private fun getHosterGroup(playerPreferences: PlayerPreferences): Preference.PreferenceGroup {
         val showFailure = playerPreferences.showFailedHosters()
         val showEmpty = playerPreferences.showEmptyHosters()
+        val qualityEntries = persistentMapOf(
+            "auto" to "Extension Default (Auto)",
+            "1080" to "1080p",
+            "720" to "720p",
+            "480" to "480p",
+            "360" to "360p",
+        )
 
         return Preference.PreferenceGroup(
             title = stringResource(AYMR.strings.pref_hosters),
             preferenceItems = persistentListOf(
+                Preference.PreferenceItem.ListPreference(
+                    preference = playerPreferences.defaultQualityWifi(),
+                    entries = qualityEntries,
+                    title = "Default video quality (Wi-Fi)",
+                ),
+                Preference.PreferenceItem.ListPreference(
+                    preference = playerPreferences.defaultQualityMobile(),
+                    entries = qualityEntries,
+                    title = "Default video quality (Mobile data)",
+                ),
                 Preference.PreferenceItem.SwitchPreference(
                     preference = showFailure,
                     title = stringResource(AYMR.strings.pref_hosters_show_failure),

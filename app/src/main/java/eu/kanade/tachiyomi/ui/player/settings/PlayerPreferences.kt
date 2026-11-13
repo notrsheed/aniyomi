@@ -83,4 +83,8 @@ class PlayerPreferences(
     // Old
 
     fun autoplayEnabled() = preferenceStore.getBoolean("pref_auto_play_enabled", false)
+
+    fun defaultQualityWifi() = preferenceStore.getString("pref_default_quality_wifi", "auto")
+
+    fun defaultQualityMobile() = preferenceStore.getString("pref_default_quality_mobile", "auto")
 }

@@ -220,6 +220,15 @@ class AnimeExtensionsScreenModel(
         }
     }
 
+    fun trustAllExtensions() {
+        screenModelScope.launch {
+            state.value.items.values.flatten()
+                .map { it.extension }
+                .filterIsInstance<AnimeExtension.Untrusted>()
+                .forEach { extensionManager.trust(it) }
+        }
+    }
+
     @Immutable
     data class State(
         val isLoading: Boolean = true,

@@ -206,12 +206,6 @@ data object DownloadsTab : Tab {
                 )
             }
         }
-                            snackbarHostState,
-                        )
-                    }
-                }
-            }
-        }
     }
 
     @Composable

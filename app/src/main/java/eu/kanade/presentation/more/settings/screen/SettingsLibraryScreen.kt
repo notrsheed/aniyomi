@@ -126,7 +126,6 @@ object SettingsLibraryScreen : SearchableSettings {
                     ),
                     onClick = {
                         navigator.push(CategoriesTab)
-                        CategoriesTab.showMangaCategory()
                     },
                 ),
                 Preference.PreferenceItem.ListPreference(
